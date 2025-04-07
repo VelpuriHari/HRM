@@ -609,6 +609,65 @@ app.get("/emplyooe", (req, res) => {
   });
 });
 
+////////////////////////////////Analysis
+/////HighestQulification
+app.get("/highestQulification", (req, res) => {
+  sql = `select count(*) as data  from employee group by HighestQulification;`;
+  db.query(sql, (err, data) => {
+    if (err) return res.json(err);
+    else {
+      console.log(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+      return res.json(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+    }
+  });
+});
+////////////
+app.get("/event", (req, res) => {
+  sql = `select count(*) as data  from eventinfo group by Role;`;
+  db.query(sql, (err, data) => {
+    if (err) return res.json(err);
+    else {
+      console.log(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+      return res.json(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+    }
+  });
+});
+////////////Designation
+app.get("/designation", (req, res) => {
+  sql = `select count(*) as data  from employee group by Designation;`;
+  db.query(sql, (err, data) => {
+    if (err) return res.json(err);
+    else {
+      console.log(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+      return res.json(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+    }
+  });
+});
+
 app.listen(8081, () => {
   console.log("Connected..........");
 });
