@@ -2,10 +2,12 @@ const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
 const bodyparser = require("body-parser");
+const multer = require("multer");
 
 const app = express();
 app.use(cors());
 app.use(bodyparser.json());
+const upload = multer({ storage: multer.memoryStorage() });
 
 const db = mysql.createConnection({
   host: "localhost",
@@ -17,36 +19,59 @@ const db = mysql.createConnection({
 app.get("/", (req, res) => {
   return res.json("From backend side");
 });
-////////support
 app.get("/support", (req, res) => {
-  const Scope = req.query.Scope ? req.query.Scope.split(",") : [];
+  const Scope = req.query.scope ? req.query.scope.split(",") : [];
+  const Acc_Year = req.query.Acc_Year ? req.query.Acc_Year.split(",") : [];
   const userid = req.query.userid;
-  console.log(userid);
-  //// console.log(Index);
-  sql = `select * from support `;
-  try {
-    if (userid.length !== null) {
-      sql += `where EmployeeID='${userid}'`;
-    }
-  } catch {
-    if (Scope.length !== 0) {
-      sql +=
-        "where Scope in (" +
-        Scope.map((id) => {
-          return `"${id}"`;
-        }) +
-        ")";
-    }
-    sql += ";";
-    ////
-    console.log(sql);
+  const gender = req.query.gender;
+  const qualification = req.query.qualification
+    ? req.query.qualification.split(",")
+    : [];
+
+  let sql = `
+    SELECT s.* 
+    FROM support s 
+    JOIN employee e ON s.EmployeeID = e.EmployeeID
+  `;
+
+  const conditions = [];
+
+  if (userid) {
+    conditions.push(`s.EmployeeID = '${userid}'`);
   }
+
+  if (Scope.length > 0) {
+    const scopeList = Scope.map((id) => `"${id}"`).join(",");
+    conditions.push(`s.Scope IN (${scopeList})`);
+  }
+
+  if (Acc_Year.length > 0) {
+    const Acc_YearList = Acc_Year.map((id) => `"${id}"`).join(",");
+    conditions.push(`s.Acc_Year IN (${Acc_YearList})`);
+  }
+
+  if (gender) {
+    conditions.push(`e.Gender = "${gender}"`);
+  }
+
+  if (qualification.length > 0) {
+    const qualList = qualification.map((q) => `"${q}"`).join(",");
+    conditions.push(`e.HighestQualification IN (${qualList})`);
+  }
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
+  sql += ";";
+  console.log(sql);
 
   db.query(sql, (err, data) => {
     if (err) return res.json(err);
     return res.json(data);
   });
 });
+
 /////////support delete
 app.delete("/support", (req, res) => {
   const userid = req.query.userid;
@@ -80,6 +105,7 @@ app.post("/support", (req, res) => {
 app.put("/support", (req, res) => {
   const { EmployeeID, Role, Scope, Support, Peroid, support_userid } = req.body;
   console.log(Role, Scope, Support);
+  console.log(Role);
 
   sql = `update support set `;
   sql += Role.length !== 0 ? `Role ='${Role}',` : ``;
@@ -101,31 +127,55 @@ app.put("/support", (req, res) => {
 //////////// Publication Get
 app.get("/publications", (req, res) => {
   const IndexedIn = req.query.IndexedIn ? req.query.IndexedIn.split(",") : [];
+  const Year = req.query.Year ? req.query.Year.split(",") : [];
   const userid = req.query.userid;
-  console.log(userid);
-  sql = `select * from journalpublications `;
-  try {
-    if (userid.length !== null) {
-      sql += `where EmployeeID='${userid}'`;
-    }
-  } catch {
-    if (IndexedIn.length !== 0) {
-      sql +=
-        "where IndexedIn in (" +
-        IndexedIn.map((id) => {
-          return `"${id}"`;
-        }) +
-        ")";
-    }
-    sql += ";";
-    console.log(sql);
+  const gender = req.query.gender;
+  const qualification = req.query.qualification
+    ? req.query.qualification.split(",")
+    : [];
+
+  let sql = `
+    SELECT jp.* 
+    FROM journalpublications jp 
+    JOIN employee e ON jp.EmployeeID = e.EmployeeID
+  `;
+  const conditions = [];
+
+  if (userid) {
+    conditions.push(`jp.EmployeeID = ${mysql.escape(userid)}`);
   }
 
+  if (IndexedIn.length > 0) {
+    const indexList = IndexedIn.map((val) => mysql.escape(val)).join(",");
+    conditions.push(`jp.IndexedIn IN (${indexList})`);
+  }
+
+  if (Year.length > 0) {
+    const yearList = Year.map((val) => mysql.escape(val)).join(",");
+    conditions.push(`jp.Year IN (${yearList})`);
+  }
+
+  if (gender) {
+    conditions.push(`e.Gender = ${mysql.escape(gender)}`);
+  }
+
+  if (qualification.length > 0) {
+    const qualList = qualification.map((val) => mysql.escape(val)).join(",");
+    conditions.push(`e.HighestQualification IN (${qualList})`);
+  }
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
+  console.log("SQL:", sql);
+
   db.query(sql, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     return res.json(data);
   });
 });
+
 ///////////Publications Delete
 app.delete("/publications", (req, res) => {
   const journalid = req.query.journalid;
@@ -195,31 +245,58 @@ app.put("/publications", (req, res) => {
 
 ///////// tlp get
 app.get("/tlp", (req, res) => {
-  const userid = req.query.userid;
   const Sec = req.query.Sec ? req.query.Sec.split(",") : [];
-  sql = `select * from tlp`;
-  try {
-    if (userid.length !== null) {
-      sql += ` where EmployeeID='${userid}'`;
-    }
-  } catch {
-    if (Sec.length !== 0) {
-      sql +=
-        " where Sec in (" +
-        Sec.map((id) => {
-          return `"${id}"`;
-        }) +
-        ")";
-    }
-    sql += ";";
+  const Year = req.query.Year ? req.query.Year.split(",") : [];
+  const gender = req.query.gender;
+  const qualification = req.query.qualification
+    ? req.query.qualification.split(",")
+    : [];
+  const userid = req.query.userid;
+
+  let sql = `
+    SELECT t.* 
+    FROM tlp t 
+    JOIN employee e ON t.EmployeeID = e.EmployeeID
+  `;
+
+  const conditions = [];
+
+  if (userid) {
+    conditions.push(`t.EmployeeID = ${mysql.escape(userid)}`);
   }
-  console.log(sql);
+
+  if (Sec.length > 0) {
+    const secFilter = Sec.map((s) => mysql.escape(s)).join(",");
+    conditions.push(`t.Sec IN (${secFilter})`);
+  }
+
+  if (Year.length > 0) {
+    const yearFilter = Year.map((y) => mysql.escape(y)).join(",");
+    conditions.push(`t.Acc_Year IN (${yearFilter})`);
+  }
+
+  if (gender) {
+    conditions.push(`e.Gender = ${mysql.escape(gender)}`);
+  }
+
+  if (qualification.length > 0) {
+    const qualFilter = qualification.map((q) => mysql.escape(q)).join(",");
+    conditions.push(`e.HighestQualification IN (${qualFilter})`);
+  }
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
+  sql += ";";
+  console.log("SQL:", sql);
 
   db.query(sql, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     return res.json(data);
   });
 });
+
 //////////////tlp delete
 app.delete("/tlp", (req, res) => {
   const tlpuserid = req.query.tlpuserid;
@@ -276,6 +353,7 @@ app.put("/tlp", (req, res) => {
     Acc_Year,
     tlpuserid,
   } = req.body;
+  console.log(HeldClasses);
 
   sql = `update tlp set `;
   sql += Course.length !== 0 ? `Course ='${Course}',` : ``;
@@ -318,20 +396,50 @@ app.put("/tlp", (req, res) => {
 ///////////Certifications
 app.get("/certifications", (req, res) => {
   const userid = req.query.userid;
-  sql = `select * from onlinecertifications`;
-  try {
-    if (userid.length !== null) {
-      sql += ` where EmployeeID='${userid}'`;
-    }
-  } catch {
-    sql += ";";
+  const Acc_Year = req.query.Acc_Year ? req.query.Acc_Year.split(",") : [];
+  const gender = req.query.gender;
+  const qualification = req.query.qualification
+    ? req.query.qualification.split(",")
+    : [];
+
+  let sql = `
+    SELECT c.* 
+    FROM onlinecertifications c
+    JOIN employee e ON c.EmployeeID = e.EmployeeID
+  `;
+
+  const conditions = [];
+
+  if (userid) {
+    conditions.push(`c.EmployeeID = '${userid}'`);
   }
+
+  if (Acc_Year.length > 0) {
+    const yearFilter = Acc_Year.map((y) => `"${y}"`).join(",");
+    conditions.push(`c.Acc_Year IN (${yearFilter})`);
+  }
+
+  if (gender) {
+    conditions.push(`e.Gender = '${gender}'`);
+  }
+
+  if (qualification.length > 0) {
+    const qualFilter = qualification.map((q) => `"${q}"`).join(",");
+    conditions.push(`e.HighestQualification IN (${qualFilter})`);
+  }
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
   console.log(sql);
+
   db.query(sql, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     return res.json(data);
   });
 });
+
 //////////////certifications delete
 app.delete("/certifications", (req, res) => {
   const certificationid = req.query.certificationid;
@@ -390,20 +498,60 @@ app.put("/certifications", (req, res) => {
 //////////////Events
 app.get("/eventinfo", (req, res) => {
   const userid = req.query.userid;
-  sql = `select * from eventinfo`;
-  try {
-    if (userid.length !== null) {
-      sql += ` where EmployeeID='${userid}'`;
-    }
-  } catch {
-    sql += ";";
+  const Role = req.query.Role ? req.query.Role.split(",") : [];
+  const Acc_Year = req.query.Acc_Year ? req.query.Acc_Year.split(",") : [];
+  const gender = req.query.gender;
+  const qualification = req.query.qualification
+    ? req.query.qualification.split(",")
+    : [];
+
+  let sql = `
+    SELECT eventinfo.* 
+    FROM eventinfo 
+    JOIN employee ON eventinfo.EmployeeID = employee.EmployeeID
+  `;
+
+  let conditions = [];
+
+  if (userid) {
+    conditions.push(`eventinfo.EmployeeID = ${mysql.escape(userid)}`);
   }
+
+  if (Role.length > 0) {
+    const roleFilter = Role.map((r) => mysql.escape(r)).join(",");
+    conditions.push(`eventinfo.Role IN (${roleFilter})`);
+  }
+
+  if (Acc_Year.length > 0) {
+    const yearFilter = Acc_Year.map((y) => mysql.escape(y)).join(",");
+    conditions.push(`eventinfo.Acc_Year IN (${yearFilter})`);
+  }
+
+  if (gender) {
+    conditions.push(`employee.Gender = ${mysql.escape(gender)}`);
+  }
+
+  if (qualification.length > 0) {
+    const qualificationFilter = qualification
+      .map((q) => mysql.escape(q))
+      .join(",");
+    conditions.push(
+      `employee.HighestQualification IN (${qualificationFilter})`
+    );
+  }
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
   console.log(sql);
+
   db.query(sql, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     return res.json(data);
   });
 });
+
 /////////events delete
 app.delete("/eventinfo", (req, res) => {
   const eventuserid = req.query.eventuserid;
@@ -464,20 +612,60 @@ app.put("/eventinfo", (req, res) => {
 /////////////Patents
 app.get("/patents", (req, res) => {
   const userid = req.query.userid;
-  sql = `select * from patents`;
-  try {
-    if (userid.length !== null) {
-      sql += ` where EmployeeID='${userid}'`;
-    }
-  } catch {
-    sql += ";";
+  const Acc_Year = req.query.Acc_Year ? req.query.Acc_Year.split(",") : [];
+  const Status = req.query.Status ? req.query.Status.split(",") : [];
+  const gender = req.query.gender;
+  const qualification = req.query.qualification
+    ? req.query.qualification.split(",")
+    : [];
+
+  let sql = `
+    SELECT patents.* 
+    FROM patents 
+    JOIN employee ON patents.EmployeeID = employee.EmployeeID
+  `;
+
+  let conditions = [];
+
+  if (userid) {
+    conditions.push(`patents.EmployeeID = ${mysql.escape(userid)}`);
   }
+
+  if (Acc_Year.length > 0) {
+    const yearFilter = Acc_Year.map((year) => mysql.escape(year)).join(",");
+    conditions.push(`patents.Acc_Year IN (${yearFilter})`);
+  }
+
+  if (Status.length > 0) {
+    const statusFilter = Status.map((s) => mysql.escape(s)).join(",");
+    conditions.push(`patents.Status IN (${statusFilter})`);
+  }
+
+  if (gender) {
+    conditions.push(`employee.Gender = ${mysql.escape(gender)}`);
+  }
+
+  if (qualification.length > 0) {
+    const qualificationFilter = qualification
+      .map((q) => mysql.escape(q))
+      .join(",");
+    conditions.push(
+      `employee.HighestQualification IN (${qualificationFilter})`
+    );
+  }
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
   console.log(sql);
+
   db.query(sql, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     return res.json(data);
   });
 });
+
 /////////patents delete
 app.delete("/patents", (req, res) => {
   const patentuserid = req.query.patentuserid;
@@ -587,6 +775,7 @@ app.put("/users", (req, res) => {
     res.json({ message: "User updated successfully" });
   });
 });
+///////////
 app.get("/emplyooe", (req, res) => {
   const EmployeeID = req.query.login;
   const sql = `SELECT * FROM employee WHERE EmployeeID=?`; // Fetch all columns
@@ -608,11 +797,60 @@ app.get("/emplyooe", (req, res) => {
     res.json({ ...employee, Photo: `data:image/jpeg;base64,${base64Photo}` });
   });
 });
+// PUT update employee
+app.put("/employee", (req, res) => {
+  const login = req.query.login;
+  const {
+    Name,
+    Designation,
+    Department,
+    DateOfJoining,
+    Email,
+    Mobile,
+    HighestQualification,
+    Photo, // base64 string or null
+  } = req.body;
+
+  const photoBuffer = Photo ? Buffer.from(Photo.split(",")[1], "base64") : null;
+  console.log(photoBuffer);
+  console.log(Photo);
+  const sql = `
+    UPDATE employee
+    SET Name=?, Designation=?, Department=?, DateOfJoining=?, Email=?, Mobile=?, HighestQualification=?, Photo=?
+    WHERE EmployeeID=?
+  `;
+  const values = [
+    Name,
+    Designation,
+    Department,
+    DateOfJoining,
+    Email,
+    Mobile,
+    HighestQualification,
+    photoBuffer,
+    login,
+  ];
+
+  db.query(sql, values, (err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json(err);
+    }
+    res.json({ message: "Updated successfully" });
+  });
+});
+app.post("/upload-photo", upload.single("photo"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString(
+    "base64"
+  )}`;
+  res.json({ base64 });
+});
 
 ////////////////////////////////Analysis
-/////HighestQulification
-app.get("/highestQulification", (req, res) => {
-  sql = `select count(*) as data  from employee group by HighestQulification;`;
+/////HighestQualification
+app.get("/HighestQulification", (req, res) => {
+  sql = `select count(*) as data  from employee group by HighestQualification;`;
   db.query(sql, (err, data) => {
     if (err) return res.json(err);
     else {
@@ -651,6 +889,44 @@ app.get("/event", (req, res) => {
 ////////////Designation
 app.get("/designation", (req, res) => {
   sql = `select count(*) as data  from employee group by Designation;`;
+  db.query(sql, (err, data) => {
+    if (err) return res.json(err);
+    else {
+      console.log(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+      return res.json(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+    }
+  });
+});
+//////////// Journalpublications
+app.get("/journalpublications", (req, res) => {
+  sql = `select count(*) as data  from journalpublications group by Year;`;
+  db.query(sql, (err, data) => {
+    if (err) return res.json(err);
+    else {
+      console.log(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+      return res.json(
+        data.map((id) => {
+          return id.data;
+        })
+      );
+    }
+  });
+});
+//////////// onlinecertifications
+app.get("/onlinecertifications", (req, res) => {
+  sql = `select count(*) as data  from onlinecertifications group by Acc_Year;`;
   db.query(sql, (err, data) => {
     if (err) return res.json(err);
     else {
