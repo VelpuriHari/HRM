@@ -74,12 +74,9 @@ app.get("/support", (req, res) => {
 
 /////////support delete
 app.delete("/support", (req, res) => {
-  const userid = req.query.userid;
-  const EmplooyeId = req.query.EmplooyeId;
-  const Role = req.query.Role;
-  const Support = req.query.Support;
-  const Peroid = req.query.Peroid;
-  const sql = `delete from support where  EmployeeID='${userid}' and Role='${Role}' and Support='${Support}'; `;
+  const support_userid = req.query.support_userid;
+
+  const sql = `delete from support where  support_userid=${support_userid}; `;
   console.log(sql);
   db.query(sql, (err, data) => {
     if (err) return res.json(err);
@@ -103,7 +100,8 @@ app.post("/support", (req, res) => {
 });
 /////// support update
 app.put("/support", (req, res) => {
-  const { EmployeeID, Role, Scope, Support, Peroid, support_userid } = req.body;
+  const { EmployeeID, Role, Scope, Support, Acc_Year, support_userid } =
+    req.body;
   console.log(Role, Scope, Support);
   console.log(Role);
 
@@ -111,7 +109,7 @@ app.put("/support", (req, res) => {
   sql += Role.length !== 0 ? `Role ='${Role}',` : ``;
   sql += Scope.length !== 0 ? `Scope ='${Scope}',` : ``;
   sql += Support.length !== 0 ? `Support ='${Support}',` : ``;
-  sql += Peroid.length !== 0 ? ` Acc_Year ='${Peroid}',` : ``;
+  sql += Acc_Year.length !== 0 ? ` Acc_Year ='${Acc_Year}',` : ``;
   sql += `EmployeeID='${EmployeeID}'`;
   sql += `where support_userid=${support_userid};`;
   console.log(sql);
@@ -586,17 +584,17 @@ app.put("/eventinfo", (req, res) => {
     DateTo,
     Outcome,
     Role,
-    Acc_year,
+    Acc_Year,
     eventuserid,
   } = req.body;
-
+  console.log(Acc_Year);
   sql = `update eventinfo set `;
   sql += ProgramName.length !== 0 ? ` ProgramName ='${ProgramName}',` : ``;
   sql += DateFrom.length !== 0 ? ` DateFrom ='${DateFrom}',` : ``;
   sql += DateTo.length !== 0 ? ` DateTo ='${DateTo}',` : ``;
   sql += Outcome.length !== 0 ? ` Outcome ='${Outcome}',` : ``;
   sql += Role.length !== 0 ? ` Role ='${Role}',` : ``;
-  sql += Acc_year.length !== 0 ? ` Acc_year ='${Acc_year}',` : ``;
+  sql += Acc_Year.length !== 0 ? ` Acc_Year ='${Acc_Year}',` : ``;
   sql += ` EmployeeID='${EmployeeID}'`;
   sql += ` where eventuserid=${eventuserid};`;
   console.log(sql);
